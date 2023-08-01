@@ -95,6 +95,9 @@ func (k BaseSendKeeper) InputOutputCoins(ctx sdk.Context, inputs []types.Input, 
 			return err
 		}
 
+		// call the TrackBeforeSend hooks for each input
+		k.TrackBeforeSend(ctx, inAddress, nil, in.Coins)
+
 		err = k.subUnlockedCoins(ctx, inAddress, in.Coins)
 		if err != nil {
 			return err
@@ -113,6 +116,10 @@ func (k BaseSendKeeper) InputOutputCoins(ctx sdk.Context, inputs []types.Input, 
 		if err != nil {
 			return err
 		}
+
+		// call the TrackBeforeSend hooks for each output
+		k.TrackBeforeSend(ctx, nil, outAddress, out.Coins)
+
 		err = k.addCoins(ctx, outAddress, out.Coins)
 		if err != nil {
 			return err
@@ -145,15 +152,15 @@ func (k BaseSendKeeper) InputOutputCoins(ctx sdk.Context, inputs []types.Input, 
 func (k BaseSendKeeper) SendCoins(ctx sdk.Context, fromAddr sdk.AccAddress, toAddr sdk.AccAddress, amt sdk.Coins) error {
 
 	// BlockBeforeSend hook should always be called before the TrackBeforeSend hook.
-	err := k.BlockBeforeSend(ctx, fromAddr, toAddr, amt)
-	if err != nil {
-		return err
-	}
+	// Leaving this comment here if BlockBeforeSend is ever required.
 
 	// call the TrackBeforeSend hooks
-	k.TrackBeforeSend(ctx, fromAddr, toAddr, amt)
+	errFromHook := k.TrackBeforeSend(ctx, fromAddr, toAddr, amt)
+	if errFromHook != nil {
+		return errFromHook
+	}
 
-	err = k.subUnlockedCoins(ctx, fromAddr, amt)
+	err := k.subUnlockedCoins(ctx, fromAddr, amt)
 	if err != nil {
 		return err
 	}
